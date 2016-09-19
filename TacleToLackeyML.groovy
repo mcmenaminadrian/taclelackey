@@ -81,9 +81,10 @@ if (tacleParse.u) {
 					case "store":
 						registerState.unmangleStore(lineIn, xml)
 						break
-					
+					case "jump":
+						registerState.unmangleJump(lineIn)
+						break
 				}
-				writer.flush()
 			})
 	}
 }

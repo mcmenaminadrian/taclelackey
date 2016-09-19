@@ -65,13 +65,12 @@ class RegisterFile {
 		def result = registers[registerMap[par2]] -
 			registers[registerMap[par3]]
 		registers[registerMap[par1]] = result & 0xFFFFFFFFFFFFFFFF
-	}
-	
+	}	
 	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
-		"srli":srli, "sub":sub ]
+		"srli":srli, "sub":sub]
 
 	def sd = {par1, par2, par3, xml ->
 		BigInteger valToStore = registers[registerMap[par1]]
@@ -99,6 +98,18 @@ class RegisterFile {
 	}
 	
 	def storeUpdates = ["sd":sd, "sw":sw]
+	
+	def jal = {par1, par2 ->
+		def multiplier = 1
+		if (par1 == "-") {
+			multiplier = -1
+		}
+		registers[registerMap["ra"]] = pc +
+			new BigInteger(par2, 16) * multiplier
+	}
+
+	
+	def jumpUpdates = ["jal":jal]
 	
 	RegisterFile(def startPCVal)
 	{
@@ -228,6 +239,16 @@ class RegisterFile {
 			//	println "store with $op4 and parameters $op5, $op6, $op7"
 				(storeUpdates.find {it.key == op4}.value).call(op5, op6,
 					op7, xml)
+			}
+		)
+	}
+	
+	public unmangleJump(def lineIn)
+	{
+		lineIn.find(
+			/(.+):\s*(\w+)\s+\((\w+)\)\s*(\S*)\s*\w*\s*([-+])\s*[0x]*(\S*)/,
+			{match, op1, op2, op3, op4, op5, op6 ->
+				(jumpUpdates.find{it.key == op4}.value).call(op5, op6)
 			}
 		)
 	}
