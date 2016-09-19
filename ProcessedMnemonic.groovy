@@ -6,9 +6,9 @@ class ProcessedMnemonic {
 	List<String> load = ["ld", "lw"]
 	List<String> registers = ["auipc", "addi", "li", "csrw", "lui", "csrs",
 		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub", "or",
-		"addiw"]
+		"addiw", "mulw", "subw", "slliw"]
 	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz", "bnez", "bltu",
-		"ret", "nop", "bge"]
+		"ret", "nop", "bge", "blt"]
 	List<String> jumps =["jal"]
 	
 	def iType

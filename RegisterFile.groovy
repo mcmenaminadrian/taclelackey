@@ -57,6 +57,12 @@ class RegisterFile {
 		registers[registerMap[par1]] &= 0xFFFFFFFFFFFFFFFF
 	}
 	
+	def slliw = {par1, par2, par3 ->
+		BigInteger tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		tempA = tempA.shiftLeft(par3.toInteger())
+		registers[registerMap[par1]] = tempA.and(0xFFFFFFFF)
+	}
+	
 	def srli = {par1, par2, par3 ->
 		registers[registerMap[par1]] =
 		(registers[registerMap[par2]]).shiftRight(par3.toInteger())
@@ -72,15 +78,31 @@ class RegisterFile {
 		registers[registerMap[par1]] = result & 0xFFFFFFFFFFFFFFFF
 	}	
 	
+	def subw = {par1, par2, par3 ->
+		BigInteger result = (registers[registerMap[par2]]).and(0xFFFFFFFF) -
+			(registers[registerMap[par3]]).and(0xFFFFFFFF)
+		result = result.and(0xFFFFFFFF)
+		registers[registerMap[par1]] = result
+	}
+	
+	
 	def or = {par1, par2, par3 ->
 		registers[registerMap[par1]] =
 			registers[registerMap[par2]].or(registers[registerMap[par3]])
 	}
 	
+	def mulw = {par1, par2, par3 ->
+		BigInteger tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		BigInteger tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
+		BigInteger tempC = (tempA * tempB).and(0xFFFFFFFF)
+		registers[registerMap[par1]] = tempC
+	}
+	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
-		"srli":srli, "sub":sub, "or":or, "addiw":addiw]
+		"srli":srli, "sub":sub, "or":or, "addiw":addiw,
+		"mulw": mulw, "subw": subw, "slliw":slliw]
 
 	def sd = {par1, par2, par3, xml ->
 	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
