@@ -23,6 +23,11 @@ class RegisterFile {
 			registers[registerMap[par3]]
 	}
 	
+	def addiw = {par1, par2, par3 ->
+		registers[registerMap[par1]] = (registers[registerMap[par2]] +
+			new BigInteger(par3, 10)).and(0xFFFFFFFF)
+	}
+	
 	def csr_rw = {par1, par2, ig1 ->
 		registers[registerMap[par1]] = registers[registerMap[par2]]
 	}
@@ -67,12 +72,20 @@ class RegisterFile {
 		registers[registerMap[par1]] = result & 0xFFFFFFFFFFFFFFFF
 	}	
 	
+	def or = {par1, par2, par3 ->
+		registers[registerMap[par1]] =
+			registers[registerMap[par2]].or(registers[registerMap[par3]])
+	}
+	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
-		"srli":srli, "sub":sub]
+		"srli":srli, "sub":sub, "or":or, "addiw":addiw]
 
 	def sd = {par1, par2, par3, xml ->
+	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
+	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
+	//	println "STORE $par1:$hexPar1 $par2 $par3:$hexPar3"
 		BigInteger valToStore = registers[registerMap[par1]]
 		def baseAddress = registers[registerMap[par3]]
 		def writeAddress = baseAddress + par2.toInteger()
@@ -97,18 +110,55 @@ class RegisterFile {
 		xml.store(address:hexWriteAddress, size:4)
 	}
 	
-	def storeUpdates = ["sd":sd, "sw":sw]
+	def sb = {par1, par2, par3, xml ->
+		BigInteger valToStore = registers[registerMap[par1]]
+		def baseAddress = registers[registerMap[par3]]
+		def writeAddress = baseAddress + par2.toInteger()
+		memory[writeAddress] = valToStore & 0xFF
+		def hexWriteAddress = "0x" + writeAddress.toString(16)
+		xml.store(address:hexWriteAddress, size:1)
+	}
 	
-	def jal = {par1, par2 ->
-		def multiplier = 1
-		if (par1 == "-") {
-			multiplier = -1
+	def storeUpdates = ["sd":sd, "sw":sw, "sb":sb]
+
+	def ld = {par1, par2, par3, xml ->
+		def baseAddress = registers[registerMap[par3]]
+		def readAddress = baseAddress + par2.toInteger()
+		BigInteger sum = 0
+		(0 .. 7).each { offset ->
+			sum += 
+				(memory[readAddress + offset]).shiftLeft(offset * 8)
 		}
-		registers[registerMap["ra"]] = pc +
-			new BigInteger(par2, 16) * multiplier
+		registers[registerMap[par1]] = sum
+		def hexReadAddress = "0x" + readAddress.toString(16)
+	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
+	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
+	//	println "LOAD $par1:$hexPar1 $par2 $par3:$hexPar3"
+		xml.load(address:hexReadAddress, size:8)
+	}
+	
+	def lw = {par1, par2, par3, xml ->
+		def baseAddress = registers[registerMap[par3]]
+		def readAddress = baseAddress + par2.toInteger()
+		BigInteger sum = 0
+		(0 .. 3).each { offset ->
+			sum +=
+				(memory[readAddress + offset]).shiftLeft(offset * 8)
+		}
+		registers[registerMap[par1]] = sum
+		def hexReadAddress = "0x" + readAddress.toString(16)
+	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
+	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
+	//	println "LOAD $par1:$hexPar1 $par2 $par3:$hexPar3"
+		xml.load(address:hexReadAddress, size:4)
+	}
+	
+	def loadUpdates = ["ld":ld, "lw":lw]
+		
+	def jal = {ig1, ig2 ->
+		registers[registerMap["ra"]] = pc + 4
 	}
 
-	
 	def jumpUpdates = ["jal":jal]
 	
 	RegisterFile(def startPCVal)
@@ -238,6 +288,18 @@ class RegisterFile {
 			{match, op1, op2, op3, op4, op5, op6, op7 ->
 			//	println "store with $op4 and parameters $op5, $op6, $op7"
 				(storeUpdates.find {it.key == op4}.value).call(op5, op6,
+					op7, xml)
+			}
+		)
+	}
+	
+	public unmangleLoad(def lineIn, def xml)
+	{
+		lineIn.find(
+			/(.+):\s*(\w+)\s+\((\w+)\)\s*(\S*)\s*(\w*),\s*(-?\w*)\((\w*)\)/,
+			{match, op1, op2, op3, op4, op5, op6, op7 ->
+			//	println "store with $op4 and parameters $op5, $op6, $op7"
+				(loadUpdates.find {it.key == op4}.value).call(op5, op6,
 					op7, xml)
 			}
 		)

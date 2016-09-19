@@ -2,11 +2,13 @@ package taclelackey
 
 class ProcessedMnemonic {
 	List<String> modify = []
-	List<String> store = ["sd", "sw"]
-	List<String> load = []
+	List<String> store = ["sd", "sw", "sb"]
+	List<String> load = ["ld", "lw"]
 	List<String> registers = ["auipc", "addi", "li", "csrw", "lui", "csrs",
-		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub"]
-	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz"]
+		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub", "or",
+		"addiw"]
+	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz", "bnez", "bltu",
+		"ret", "nop", "bge"]
 	List<String> jumps =["jal"]
 	
 	def iType
