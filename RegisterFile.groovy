@@ -98,11 +98,34 @@ class RegisterFile {
 		registers[registerMap[par1]] = tempC
 	}
 	
+	def divw = {par1, par2, par3 ->
+		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
+		int tempC = tempA / tempB
+		registers[registerMap[par1]] = tempC
+	}
+	
+	def addw = {par1, par2, par3 ->
+		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
+		int tempC = tempA + tempB
+		registers[registerMap[par1]] = tempC
+	}
+	
+	def srliw = {par1, par2, par3 ->
+		println "SRLIW $par1 $par2 $par3"
+		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempB = par3.toInteger() 
+		int tempC = tempA >> tempB
+		registers[registerMap[par1]] = tempC
+	}
+	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
 		"srli":srli, "sub":sub, "or":or, "addiw":addiw,
-		"mulw": mulw, "subw": subw, "slliw":slliw]
+		"mulw": mulw, "subw": subw, "slliw":slliw, "divw":divw,
+		"addw": addw, "srliw": srliw, "sraiw": srliw]
 
 	def sd = {par1, par2, par3, xml ->
 	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)

@@ -6,7 +6,7 @@ class ProcessedMnemonic {
 	List<String> load = ["ld", "lw"]
 	List<String> registers = ["auipc", "addi", "li", "csrw", "lui", "csrs",
 		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub", "or",
-		"addiw", "mulw", "subw", "slliw"]
+		"addiw", "mulw", "subw", "slliw", "divw", "addw", "srliw", "sraiw"]
 	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz", "bnez", "bltu",
 		"ret", "nop", "bge", "blt"]
 	List<String> jumps =["jal"]
