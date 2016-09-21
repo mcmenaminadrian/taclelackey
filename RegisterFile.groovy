@@ -14,18 +14,21 @@ class RegisterFile {
 	}
 	
 	def addi = {par1, par2, par3 ->
-		registers[registerMap[par1]] = registers[registerMap[par2]] + 
-			new BigInteger(par3, 10)
+		registers[registerMap[par1]] = (registers[registerMap[par2]] + 
+			new BigInteger(par3, 10)).and(0xFFFFFFFFFFFFFFFF)
 	}
 	
 	def add = {par1, par2, par3 ->
-		registers[registerMap[par1]] = registers[registerMap[par2]] +
-			registers[registerMap[par3]]
+		registers[registerMap[par1]] = (registers[registerMap[par2]] +
+			registers[registerMap[par3]]).and(0xFFFFFFFFFFFFFFFF)
 	}
 	
 	def addiw = {par1, par2, par3 ->
-		registers[registerMap[par1]] = (registers[registerMap[par2]] +
-			new BigInteger(par3, 10)).and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempB = par3.toInteger()
+		int sum = tempA + tempB
+		BigInteger bigSum = sum
+		registers[registerMap[par1]] = bigSum
 	}
 	
 	def csr_rw = {par1, par2, ig1 ->
@@ -58,9 +61,11 @@ class RegisterFile {
 	}
 	
 	def slliw = {par1, par2, par3 ->
-		BigInteger tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		tempA = tempA.shiftLeft(par3.toInteger())
-		registers[registerMap[par1]] = tempA.and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempB = par3.toInteger()
+		int shifted = tempA << tempB
+		BigInteger bigShifted = shifted
+		registers[registerMap[par1]] = bigShifted
 	}
 	
 	def srli = {par1, par2, par3 ->
@@ -79,10 +84,11 @@ class RegisterFile {
 	}	
 	
 	def subw = {par1, par2, par3 ->
-		BigInteger result = (registers[registerMap[par2]]).and(0xFFFFFFFF) -
-			(registers[registerMap[par3]]).and(0xFFFFFFFF)
-		result = result.and(0xFFFFFFFF)
-		registers[registerMap[par1]] = result
+		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempB = registers[registerMap[par3]].and(0xFFFFFFFF)
+		int result = tempA - tempB
+		BigInteger bigResult = result
+		registers[registerMap[par1]] = bigResult
 	}
 	
 	
@@ -92,32 +98,49 @@ class RegisterFile {
 	}
 	
 	def mulw = {par1, par2, par3 ->
-		BigInteger tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		BigInteger tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		BigInteger tempC = (tempA * tempB).and(0xFFFFFFFF)
-		registers[registerMap[par1]] = tempC
+		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
+		int multi = tempA * tempB
+		BigInteger bigMulti = multi
+		registers[registerMap[par1]] = bigMulti
 	}
 	
 	def divw = {par1, par2, par3 ->
-		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		int tempC = tempA / tempB
-		registers[registerMap[par1]] = tempC
+		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempB = (registers[registerMap[par3]].abs()).and(0xFFFFFFFF)
+		int div = tempA / tempB
+		BigInteger bigDiv = div
+		registers[registerMap[par1]] = div
 	}
 	
 	def addw = {par1, par2, par3 ->
 		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
 		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		int tempC = tempA + tempB
-		registers[registerMap[par1]] = tempC
+		int addUp = tempA + tempB
+		BigInteger bigAddUp = addUp
+		registers[registerMap[par1]] = bigAddUp
 	}
 	
 	def srliw = {par1, par2, par3 ->
 		println "SRLIW $par1 $par2 $par3"
 		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
 		int tempB = par3.toInteger() 
-		int tempC = tempA >> tempB
-		registers[registerMap[par1]] = tempC
+		int shiftedLeft = tempA >> tempB
+		BigInteger bigShiftedLeft = shiftedLeft
+		registers[registerMap[par1]] = bigShiftedLeft
+	}
+	
+	def sraiw = {par1, par2, par3 ->
+		println "SRAIW $par1 $par2 $par3"
+		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int signA = Integer.signum(tempA)
+		int tempB = par3.toInteger() % 0x400
+		int initShift = tempA >> tempB
+		if (Integer.signum(initShift) != signA) {
+			initShift *= -1
+		}
+		BigInteger arithShift = new BigInteger(initShift)
+		registers[registerMap[par1]] = arithShift
 	}
 	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
@@ -125,7 +148,7 @@ class RegisterFile {
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
 		"srli":srli, "sub":sub, "or":or, "addiw":addiw,
 		"mulw": mulw, "subw": subw, "slliw":slliw, "divw":divw,
-		"addw": addw, "srliw": srliw, "sraiw": srliw]
+		"addw": addw, "srliw": srliw, "sraiw": sraiw]
 
 	def sd = {par1, par2, par3, xml ->
 	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
@@ -183,18 +206,25 @@ class RegisterFile {
 	}
 	
 	def lw = {par1, par2, par3, xml ->
+
+		def hexPar1 = (registers[registerMap[par1]]).toString(16)
+		def hexPar3 = (registers[registerMap[par3]]).toString(16)
+		println "LOAD $par1:$hexPar1 $par2 $par3:$hexPar3"
 		def baseAddress = registers[registerMap[par3]]
 		def readAddress = baseAddress + par2.toInteger()
 		BigInteger sum = 0
 		(0 .. 3).each { offset ->
-			sum +=
-				(memory[readAddress + offset]).shiftLeft(offset * 8)
+			try {
+				sum +=
+					(memory[readAddress + offset]).shiftLeft(offset * 8)
+			}
+			catch (NullPointerException e) {
+				println "$readAddress $offset $par1 $par2 $par3"
+			}
+			
 		}
 		registers[registerMap[par1]] = sum
 		def hexReadAddress = "0x" + readAddress.toString(16)
-	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
-	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
-	//	println "LOAD $par1:$hexPar1 $par2 $par3:$hexPar3"
 		xml.load(address:hexReadAddress, size:4)
 	}
 	
