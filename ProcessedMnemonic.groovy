@@ -6,9 +6,10 @@ class ProcessedMnemonic {
 	List<String> load = ["ld", "lw"]
 	List<String> registers = ["auipc", "addi", "li", "csrw", "lui", "csrs",
 		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub", "or",
-		"addiw", "mulw", "subw", "slliw", "divw", "addw", "srliw", "sraiw"]
+		"addiw", "mulw", "subw", "slliw", "divw", "addw", "srliw", "sraiw",
+		"mul", "srai", "sext.w", "sraw", "snez"]
 	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz", "bnez", "bltu",
-		"ret", "nop", "bge", "blt"]
+		"ret", "nop", "bge", "blt", "bgez", "beq"]
 	List<String> jumps =["jal"]
 	
 	def iType
@@ -37,6 +38,10 @@ class ProcessedMnemonic {
 		}
 		if (jumps.find{it == mnemonic}) {
 			iType = "jump"
+			return
+		}
+		if (mnemonic == "ecall") {
+			iType = "done"
 			return
 		}
 		println "$mnemonic not found"

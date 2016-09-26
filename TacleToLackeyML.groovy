@@ -63,8 +63,12 @@ if (tacleParse.u) {
 	def matchCount = 0
 	def xml = new groovy.xml.MarkupBuilder(writer)
 	def registerState = new RegisterFile()
+	def process = true
 	reader.eachLine	{ lineIn, count ->
 		lineIn.eachMatch( /(.+):\s*(\w+)\s+\((\w+)\)\s*(\S*)/, { matchup ->
+				if (process == false) {
+					return
+				}
 				//update PC and write out instruction xml
 				registerState.pcUpdate(new BigInteger(
 					matchup[2].stripIndent(2), 16))
@@ -86,8 +90,13 @@ if (tacleParse.u) {
 					case "jump":
 						registerState.unmangleJump(lineIn)
 						break
+					case "done":
+						process = false
+						break
 				}
 			})
 	}
+	writer.write("\n</lackeyml>")
+	writer.flush()
 }
 			
