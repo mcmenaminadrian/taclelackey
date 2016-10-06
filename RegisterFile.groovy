@@ -123,9 +123,12 @@ class RegisterFile {
 	def divw = {par1, par2, par3 ->
 		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
 		int tempB = (registers[registerMap[par3]].abs()).and(0xFFFFFFFF)
-		int div = tempA / tempB
-		BigInteger bigDiv = div
-		registers[registerMap[par1]] = div
+		if (tempB == 0) {
+			return
+		}
+		int divx = tempA / tempB
+		BigInteger bigDiv = divx
+		registers[registerMap[par1]] = bigDiv
 	}
 	
 	def addw = {par1, par2, par3 ->
@@ -142,6 +145,14 @@ class RegisterFile {
 		int shiftedLeft = tempA >> tempB
 		BigInteger bigShiftedLeft = shiftedLeft
 		registers[registerMap[par1]] = bigShiftedLeft
+	}
+	
+	def srlw = {par1, par2, par3 ->
+		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
+		int tempC = tempA << tempB
+		BigInteger bigShiftedRight = tempC
+		registers[registerMap[par1]] = bigShiftedRight
 	}
 	
 	def sraiw = {par1, par2, par3 ->
@@ -217,12 +228,32 @@ class RegisterFile {
 		}
 	}
 	
+	def slti = {par1, par2, par3 ->
+		if (registers[registerMap[par2]] < par3.toInteger()) {
+			registers[registerMap[par1]] = new BigInteger(1)
+		} else {
+			registers[registerMap[par1]] = new BigInteger(0)
+		}
+	}
+	
+	def slt = {par1, par2, par3 ->
+		if (registers[registerMap[par2]] < 
+			registers[registerMap[par3]]) {
+			registers[registerMap[par1]] = new BigInteger(1)
+		} else {
+			registers[registerMap[par1]] = new BigInteger(0) 
+		}
+	}
+	
 	def xori = {par1, par2, par3 ->
 		registers[registerMap[par1]] =
 			registers[registerMap[par2]].xor(par3.toInteger())
 	}
 	
 	def div = {par1, par2, par3 ->
+		if (registers[registerMap[par3]] == 0) {
+			return
+		}
 		registers[registerMap[par1]] = 
 			registers[registerMap[par1]].divide(registers[registerMap[par3]])
 	}
@@ -255,9 +286,22 @@ class RegisterFile {
 		}
 	}
 	
+	def remw = {par1, par2, par3 ->
+		def tempA = registers[registerMap[par3]].and(0xFFFFFFFF)
+		if (tempA == 0) {
+			registers[registerMap[par1]] = 0
+			return
+		}
+		def tempB = registers[registerMap[par2]].and(0xFFFFFFFF)
+		registers[registerMap[par1]] = tempB.remainder(tempA)
+	}
+	
 	def divu = { par1, par2, par3 ->
 		BigInteger tempA = registers[registerMap[par2]]
 		BigInteger tempB = registers[registerMap[par3]]
+		if (tempB == 0) {
+			return;
+		}
 		if (tempA < 0) {
 			tempA *= -1
 		}
@@ -275,7 +319,8 @@ class RegisterFile {
 		"addw": addw, "srliw": srliw, "sraiw": sraiw, "mul": mul, "srai":srai,
 		"sext.w": sextw, "sraw": sraw, "snez": snez, "not":not, "sllw": sllw,
 		"and": and, "seqz": seqz, "sltiu": sltiu, "xori": xori, "div": div,
-		"xor": xor, "rem": rem, "remu": remu, "divu": div]
+		"xor": xor, "rem": rem, "remu": remu, "divu": divu, "remw": remw,
+		"srlw": srlw, "slt": slt, "slti": slti]
 
 	def sd = {par1, par2, par3, xml ->
 	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
