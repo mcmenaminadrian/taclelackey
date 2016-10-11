@@ -8,9 +8,15 @@ class RegisterFile {
 	def memory = [:]
 	def maxRegVal
 	
+	def normalise = {registerName ->
+		registers[registerMap[registerName]] = 
+			registers[registerMap[registerName]].and(0xFFFFFFFFFFFFFFFF)
+	}
+	
 	def auipc = {par1, par2, ig1 ->
 		def addValue = new BigInteger(par2.stripIndent(2), 16)
-		registers[registerMap[par1]] = pc + addValue.shiftLeft(12)
+		addValue = (addValue.and(0xFFFFF)).shiftLeft(12)
+		registers[registerMap[par1]] = pc + addValue
 	}
 	
 	def addi = {par1, par2, par3 ->
@@ -44,6 +50,7 @@ class RegisterFile {
 	def lui = {par1, par2, ig1 ->
 		def addValue = new BigInteger(par2.stripIndent(2), 16)
 		registers[registerMap[par1]] = addValue.shiftLeft(12)
+		
 	}
 	
 	def csr_or = {par1, par2, ig1 ->
@@ -267,9 +274,10 @@ class RegisterFile {
 		if (registers[registerMap[par3]] == 0) {
 			registers[registerMap[par1]] = registers[registerMap[par2]]
 		} else {
-			registers[registerMap[par1]] =
-				registers[registerMap[par2]].remainder(
-					registers[registerMap[par3]])
+			def tempA = registers[registerMap[par2]]
+			def tempB = registers[registerMap[par3]]
+			def tempC = tempA.remainder(tempB)
+			registers[registerMap[par1]] = tempC
 		}
 	}
 	
@@ -311,6 +319,21 @@ class RegisterFile {
 		registers[registerMap[par1]] = tempA.divide(tempB)
 	}
 	
+	def divuw = {par1, par2, par3 ->
+		BigInteger tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		BigInteger tempB = registers[registerMap[par3]].and(0xFFFFFFFF)
+		if (tempB == 0) {
+			return;
+		}
+		if (tempA < 0) {
+			tempA *= -1
+		}
+		if (tempB < 0) {
+			tempB *= -1
+		}
+		registers[registerMap[par1]] = (tempA.divide(tempB)).and(0xFFFFFFFF)
+	}
+	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
@@ -320,12 +343,9 @@ class RegisterFile {
 		"sext.w": sextw, "sraw": sraw, "snez": snez, "not":not, "sllw": sllw,
 		"and": and, "seqz": seqz, "sltiu": sltiu, "xori": xori, "div": div,
 		"xor": xor, "rem": rem, "remu": remu, "divu": divu, "remw": remw,
-		"srlw": srlw, "slt": slt, "slti": slti]
+		"srlw": srlw, "slt": slt, "slti": slti, "divuw": divuw]
 
 	def sd = {par1, par2, par3, xml ->
-	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
-	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
-	//	println "STORE $par1:$hexPar1 $par2 $par3:$hexPar3"
 		BigInteger valToStore = registers[registerMap[par1]]
 		def baseAddress = registers[registerMap[par3]]
 		def writeAddress = baseAddress + par2.toInteger()
@@ -377,9 +397,6 @@ class RegisterFile {
 		}
 		registers[registerMap[par1]] = sum
 		def hexReadAddress = "0x" + readAddress.toString(16)
-	//	def hexPar1 = (registers[registerMap[par1]]).toString(16)
-	//	def hexPar3 = (registers[registerMap[par3]]).toString(16)
-	//	println "LOAD $par1:$hexPar1 $par2 $par3:$hexPar3"
 		xml.load(address:hexReadAddress, size:8)
 	}
 	
@@ -409,13 +426,13 @@ class RegisterFile {
 		BigInteger numb
 		try {
 			numb = memory[readAddress]
-			numb = (numb.and(0xFF)).shiftLeft(56)
+			numb = (numb.and(0xFF))
 		}
 		catch (NullPointerException e) {
 			System.err.println "EXCEPTION!!! lbu fail at $readAddress"
 			numb = 0
 		}
-		registers[registerMap[par1]] = numb
+		registers[registerMap[par1]] = numb.and(0xFFFFFFFFFFFFFFFF)
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:1)
 	}
@@ -450,7 +467,7 @@ class RegisterFile {
 					err.println "EXCEPTION!!! lwu fail ${readAddress + offset}"
 			}
 		}
-		numb = (numb.and(0xFFFFFFFF)).shiftLeft(32)
+		registers[registerMap[par1]] = numb.and(0xFFFFFFFFFFFFFFFF)
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:4)
 	}
@@ -579,6 +596,7 @@ class RegisterFile {
 			{match, op1, op2, op3, op4, op5, op6, op7 ->
 				//println "state update with $op4 and paramters $op5, $op6, $op7"
 				(stateUpdates.find {it.key == op4}.value).call(op5, op6, op7)
+				normalise.call(op5)
 			}
 		)
 	}

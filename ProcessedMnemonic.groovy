@@ -9,7 +9,7 @@ class ProcessedMnemonic {
 		"addiw", "mulw", "subw", "slliw", "divw", "addw", "srliw", "sraiw",
 		"mul", "srai", "sext.w", "sraw", "snez", "not", "sllw", "and", "seqz",
 		"sltiu", "xori", "div", "xor", "rem", "remu", "divu", "remw", "srlw",
-		"slt", "slti"]
+		"slt", "slti", "divuw"]
 	List<String> noAction = ["j", "jr", "beqz", "bgeu", "bltz", "bnez", "bltu",
 		"ret", "nop", "bge", "blt", "bgez", "beq", "bne"]
 	List<String> jumps =["jal"]
