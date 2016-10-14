@@ -11,6 +11,8 @@ class RegisterFile {
 	def normalise = {registerName ->
 		registers[registerMap[registerName]] = 
 			registers[registerMap[registerName]].and(0xFFFFFFFFFFFFFFFF)
+			System.err.println "${registers[2]} : ${registers[6]}"
+		
 	}
 	
 	def auipc = {par1, par2, ig1 ->
@@ -22,13 +24,13 @@ class RegisterFile {
 	def addi = {par1, par2, par3 ->
 		BigInteger tempA = new BigInteger(par3, 10)
 		registers[registerMap[par1]] =(
-			registers[registerMap[par2]] + tempA).and(0xFFFFFFFFFFFFFFFF)
+			registers[registerMap[par2]] + tempA)
 	}
 	
 	def add = {par1, par2, par3 ->
 		registers[registerMap[par1]] =
 			(registers[registerMap[par2]] +
-			registers[registerMap[par3]]).and(0xFFFFFFFFFFFFFFFF)
+			registers[registerMap[par3]])
 	}
 	
 	def addiw = {par1, par2, par3 ->
@@ -49,7 +51,7 @@ class RegisterFile {
 	
 	def lui = {par1, par2, ig1 ->
 		def addValue = new BigInteger(par2.stripIndent(2), 16)
-		registers[registerMap[par1]] = addValue.shiftLeft(12)
+		registers[registerMap[par1]] = (addValue.shiftLeft(12)).and(0xFFFFFFFF)
 		
 	}
 	
@@ -96,7 +98,7 @@ class RegisterFile {
 	def sub = {par1, par2, par3 ->
 		BigInteger result = registers[registerMap[par2]] -
 			registers[registerMap[par3]]
-		registers[registerMap[par1]] = result.and(0xFFFFFFFFFFFFFFFF)
+		registers[registerMap[par1]] = result
 	}	
 	
 	def subw = {par1, par2, par3 ->
@@ -122,9 +124,9 @@ class RegisterFile {
 	}
 	
 	def mul = {par1, par2, par3 ->
-		registers[registerMap[par1]] = new BigInteger(
+		registers[registerMap[par1]] =
 			(registers[registerMap[par2]] *
-			registers[registerMap[par3]]).and(0xFFFFFFFFFFFFFFFF))
+			registers[registerMap[par3]])
 	}
 	
 	def divw = {par1, par2, par3 ->
@@ -334,6 +336,12 @@ class RegisterFile {
 		registers[registerMap[par1]] = (tempA.divide(tempB)).and(0xFFFFFFFF)
 	}
 	
+	def ori = {par1, par2, par3 ->
+		registers[registerMap[par1]] =
+			registers[registerMap[par2]].or(par3.toInteger())
+	}
+
+	
 	def stateUpdates = ["auipc":auipc, "addi":addi, "csrw": csr_rw, "li":li,
 		"lui": lui, "csrs": csr_or, "csrr":csr_rw, "andi": andi,
 		"fmv.s.x": csr_rw, "add": add, "slli": slli, "mv":mv,
@@ -343,7 +351,104 @@ class RegisterFile {
 		"sext.w": sextw, "sraw": sraw, "snez": snez, "not":not, "sllw": sllw,
 		"and": and, "seqz": seqz, "sltiu": sltiu, "xori": xori, "div": div,
 		"xor": xor, "rem": rem, "remu": remu, "divu": divu, "remw": remw,
-		"srlw": srlw, "slt": slt, "slti": slti, "divuw": divuw]
+		"srlw": srlw, "slt": slt, "slti": slti, "divuw": divuw, "ori": ori]
+	
+	
+	def fsgnjs = { par1, par2, par3 ->
+		def signOut = Math.signum(registers[registerMap[par3]])
+		registers[registerMap[par1]] =
+			Math.copySign(registers[registerMap[par2]], signOut)
+	}
+	
+	def fsgnjns = { par1, par2, par3 ->
+		def signOut = Math.signum(registers[registerMap[par3]]) * -1.0
+		registers[registerMap[par1]] =
+			Math.copySign(registers[registerMap[par2]], signOut)
+	}
+	
+	def fcvtds = {par1, par2, ig1 ->
+		double tempA = registers[registerMap[par2]]
+		registers[registerMap[par1]] = tempA
+	}
+	
+	def fcvtdw = {par1, par2, ig1 ->
+		int tempA = registers[registerMap[par2]]
+		double result = tempA
+		registers[registerMap[par1]] = result
+	}
+	
+	def fcvtsd = {par1, par2, ig1 ->
+		float tempA = registers[registerMap[par2]]
+		registers[registerMap[par1]] = tempA
+	}
+	
+	def fcvtsw = {par1, par2, ig1 ->
+		float tempA = registers[registerMap[par2]]
+		registers[registerMap[par1]] = tempA
+	}
+	
+	def fmuld = {par1, par2, par3 ->
+		Double tempA = registers[registerMap[par3]]
+		Double tempB = registers[registerMap[par2]]
+		Double result = tempA * tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def fmuls = {par1, par2, par3 ->
+		float tempA = registers[registerMap[par3]]
+		float tempB = registers[registerMap[par2]]
+		float result = tempA * tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def fdivd = {par1, par2, par3 ->
+		Double tempA = registers[registerMap[par3]]
+		Double tempB = registers[registerMap[par2]]
+		Double result = tempA / tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def fsubs = {par1, par2, par3 ->
+		float tempA = registers[registerMap[par2]]
+		float tempB = registers[registerMap[par3]]
+		float result = tempA - tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def fdivs = {par1, par2, par3 ->
+		float tempA = registers[registerMap[par3]]
+		float tempB = registers[registerMap[par2]]
+		float result = tempA / tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def feqs = {par1, par2, ig1 ->
+		float tempA = registers[registerMap[par2]]
+		if (tempA == 0.0) {
+			registers[registerMap[par1]] = 1
+		} else {
+			registers[registerMap[par1]] = 0
+		}
+	}
+	
+	def fadds = {par1, par2, par3 ->
+		float tempA = registers[registerMap[par3]]
+		float tempB = registers[registerMap[par2]]
+		float result = tempA + tempB
+		registers[registerMap[par1]] = result
+	}
+	
+	def fcvwts = {par1, par2, ig1 ->
+		float tempA = registers[registerMap[par2]]
+		int result = tempA
+		registers[registerMap[par1]] = result
+	}
+	
+	def stateFPUpdates = ["fsgnj.s": fsgnjs, "fcvt.d.s": fcvtds,
+		"fmul.d": fmuld, "fdiv.d": fdivd, "fcvt.s.d": fcvtsd,
+		"fcvt.s.w": fcvtsw, "fsub.s": fsubs, "fdiv.s": fdivs,
+		"feq.s": feqs, "fmul.s": fmuls, "fadd.s": fadds,
+		"fcvt.w.s": fcvwts, "fsgnjn.s": fsgnjns, "fcvt.d.w": fcvtdw]
 
 	def sd = {par1, par2, par3, xml ->
 		BigInteger valToStore = registers[registerMap[par1]]
@@ -379,7 +484,31 @@ class RegisterFile {
 		xml.store(address:hexWriteAddress, size:1)
 	}
 	
-	def storeUpdates = ["sd":sd, "sw":sw, "sb":sb]
+	def fsd = {par1, par2, par3, xml ->
+		Double valToStore = registers[registerMap[par1]]
+		def baseAddress = registers[registerMap[par3]]
+		def writeAddress = baseAddress + par2.toInteger()
+		(0..7).each {offset ->
+			memory[writeAddress + offset] =
+				(Double.doubleToLongBits(valToStore) >> (8 * offset)) & 0xFF 
+		}
+		def hexWriteAddress = "0x" + writeAddress.toString(16)
+		xml.store(address:hexWriteAddress, size:8)
+	}
+	
+	def fsw = {par1, par2, par3, xml ->
+		float valToStore = registers[registerMap[par1]]
+		def baseAddress = registers[registerMap[par3]]
+		def writeAddress = baseAddress + par2.toInteger()
+		(0..3).each {offset ->
+			memory[writeAddress + offset] =
+				(Float.floatToIntBits(valToStore) >> (8 * offset)) & 0xFF
+		}
+		def hexWriteAddress = "0x" + writeAddress.toString(16)
+		xml.store(address:hexWriteAddress, size:4)
+	}
+	
+	def storeUpdates = ["sd":sd, "sw":sw, "sb":sb, "fsd": fsd, "fsw": fsw]
 
 	def ld = {par1, par2, par3, xml ->
 		def baseAddress = registers[registerMap[par3]]
@@ -392,6 +521,7 @@ class RegisterFile {
 			}
 			catch (NullPointerException e) {
 				System.err.println "EXCEPTION!!!! ${readAddress + offset} $par1 $par2 $par3"
+				memory[readAddress + offset] = 0
 				sum += 0
 			}
 		}
@@ -406,11 +536,13 @@ class RegisterFile {
 		BigInteger sum = 0
 		(0 .. 3).each { offset ->
 			try {
+				BigInteger readIn = memory[readAddress + offset]
 				sum +=
-					(memory[readAddress + offset]).shiftLeft(offset * 8)
+					 readIn.shiftLeft(offset * 8)
 			}
 			catch (NullPointerException e) {
 				System.err.println "EXCEPTION!!!! ${readAddress + offset} $par1 $par2 $par3"
+				memory[readAddress + offset] = 0
 				sum += 0
 			}
 			
@@ -430,6 +562,7 @@ class RegisterFile {
 		}
 		catch (NullPointerException e) {
 			System.err.println "EXCEPTION!!! lbu fail at $readAddress"
+			memory[readAddress] = 0
 			numb = 0
 		}
 		registers[registerMap[par1]] = numb.and(0xFFFFFFFFFFFFFFFF)
@@ -448,6 +581,7 @@ class RegisterFile {
 		catch (NullPointerException e) {
 			System.err.println "EXCEPTION!!! lb fail at $readAddress"
 			numb = 0
+			memory[readAddress] = 0
 		}
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:1)
@@ -459,10 +593,11 @@ class RegisterFile {
 		BigInteger numb = 0
 		(0 .. 3).each { offset->
 			try {
-				numb += memory[readAddress + offset].shiftLeft(offset * 8)
+				numb += memory[readAddress + offset].leftShift(offset * 8)
 			}
 			catch (NullPointerException e) {
 				numb = 0
+				memory[readAddress + offset] = 0
 				System.
 					err.println "EXCEPTION!!! lwu fail ${readAddress + offset}"
 			}
@@ -472,7 +607,49 @@ class RegisterFile {
 		xml.load(address:hexReadAddress, size:4)
 	}
 	
-	def loadUpdates = ["ld":ld, "lw":lw, "lbu": lbu, "lwu":lwu, "lb": lb]
+	def flw = {par1, par2, par3, xml ->
+		def baseAddress = registers[registerMap[par3]]
+		def readAddress = baseAddress + par2.toInteger()
+		int rawNumb = 0
+		int readIn = 0
+		(0 .. 3).each { offset ->
+			try {
+				readIn = memory[readAddress + offset]
+				rawNumb += readIn << (offset * 8)
+			}
+			catch (NullPointerException e) {
+				rawNumb = 0
+				memory[readAddress + offset] = 0
+				System.err.println "EXCEPTION!! flw fail $readAddress"
+			}
+		}
+		registers[registerMap[par1]] = Float.intBitsToFloat(rawNumb)
+		def hexReadAddress = "0x" + readAddress.toString(16)
+		xml.load(address:hexReadAddress, size:4)
+	}
+	
+	
+	def fld = {par1, par2, par3, xml ->
+		def baseAddress = registers[registerMap[par3]]
+		def readAddress = baseAddress + par2.toInteger()
+		long rawNumb = 0
+		(0 .. 7).each { offset ->
+			try {
+				rawNumb += (memory[readAddress + offset] << (offset * 8))
+			}
+			catch (NullPointerException e) {
+				rawNumb = 0
+				memory[readAddress + offset] = 0
+				System.err.println "EXCEPTION!! fld fail $readAddress"
+			}
+		}
+		registers[registerMap[par1]] = Double.longBitsToDouble(rawNumb)
+		def hexReadAddress = "0x" + readAddress.toString(16)
+		xml.load(address:hexReadAddress, size:8)
+	}
+	
+	def loadUpdates = ["ld":ld, "lw":lw, "lbu": lbu, "lwu":lwu, "lb": lb,
+		"flw": flw, "fld": fld]
 		
 	def jal = {ig1, ig2 ->
 		registers[registerMap["ra"]] = pc + 4
@@ -597,6 +774,17 @@ class RegisterFile {
 				//println "state update with $op4 and paramters $op5, $op6, $op7"
 				(stateUpdates.find {it.key == op4}.value).call(op5, op6, op7)
 				normalise.call(op5)
+			}
+		)
+	}
+	
+	public unmangleFPStateUpdate(def lineIn)
+	{
+		lineIn.find (
+			/(.+):\s*(\w+)\s+\((\w+)\)\s*(\S*)\s*(\w*),\s*([-\w]*),?\s?(\S*)?/,
+			{match, op1, op2, op3, op4, op5, op6, op7 ->
+				//println "state update with $op4 and paramters $op5, $op6, $op7"
+				(stateFPUpdates.find {it.key == op4}.value).call(op5, op6, op7)
 			}
 		)
 	}

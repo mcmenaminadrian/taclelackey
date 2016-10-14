@@ -90,6 +90,9 @@ if (tacleParse.u) {
 					case "jump":
 						registerState.unmangleJump(lineIn)
 						break
+					case "fpRegisters":
+						registerState.unmangleFPStateUpdate(lineIn)
+						break
 					case "done":
 						process = false
 						break
