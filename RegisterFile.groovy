@@ -16,29 +16,30 @@ class RegisterFile {
 	}
 	
 	def auipc = {par1, par2, ig1 ->
-		def addValue = new BigInteger(par2.stripIndent(2), 16)
-		addValue = (addValue.and(0xFFFFF)).shiftLeft(12)
-		registers[registerMap[par1]] = pc + addValue
+		int addValue = Integer.parseInt(par2.stripIndent(2), 16)
+		long lAddValue = (addValue ^ 0x80000) - 0x80000
+		registers[registerMap[par1]] = pc + lAddValue
 	}
 	
 	def addi = {par1, par2, par3 ->
-		BigInteger tempA = new BigInteger(par3, 10)
-		registers[registerMap[par1]] =(
-			registers[registerMap[par2]] + tempA)
+		def tempA = par3.toLong()
+		long tempB = registers[registerMap[par2]]
+		long result = tempA + tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def add = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			(registers[registerMap[par2]] +
-			registers[registerMap[par3]])
+		long tempA = registers[registerMap[par3]]
+		long tempB = registers[registerMap[par2]]
+		long result = tempA + tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def addiw = {par1, par2, par3 ->
-		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		int tempB = par3.toInteger()
-		int sum = tempA + tempB
-		BigInteger bigSum = sum
-		registers[registerMap[par1]] = bigSum
+		int tempA = registers[registerMap[par2]]
+		int tempB = par3.toLong()
+		int result = tempA + tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def csr_rw = {par1, par2, ig1 ->
@@ -46,12 +47,14 @@ class RegisterFile {
 	}
 	
 	def li = {par1, par2, ig1 ->
-		registers[registerMap[par1]] = new BigInteger(par2, 10)
+		long result = par2.toLong()
+		registers[registerMap[par1]] = result
 	}
 	
 	def lui = {par1, par2, ig1 ->
-		def addValue = new BigInteger(par2.stripIndent(2), 16)
-		registers[registerMap[par1]] = (addValue.shiftLeft(12)).and(0xFFFFFFFF)
+		int addValue = Integer.parseInt(par2.stripIndent(2), 16)
+		long lAddValue = (addValue ^ 0x80000) - 0x80000
+		registers[registerMap[par1]] = lAddValue
 		
 	}
 	
@@ -60,35 +63,37 @@ class RegisterFile {
 	}
 	
 	def andi = {par1, par2, par3 ->
-		BigInteger addValue = par3.toInteger()
+		long addValue = par3.toLong()
 		registers[registerMap[par1]] =
-			registers[registerMap[par2]].and(addValue)
+			registers[registerMap[par2]] & addValue
 		}
 	
 	def slli = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			BigInteger.valueOf((registers[registerMap[par2]]))
-			.shiftLeft(par3.toInteger())
-		registers[registerMap[par1]] &= 0xFFFFFFFFFFFFFFFF
+		long tempB = par3.toLong()
+		long tempA = registers[registerMap[par2]]
+		long result = tempA << tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def sllw = {par1, par2, par3 ->
-		BigInteger tempA = registers[registerMap[par2]]
-		BigInteger tempB = registers[registerMap[par3]].and(0x1F)
-		registers[registerMap[par1]] = (tempA.shiftLeft(tempB)).and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]] & 0x3F
+		int result = tempA << tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def slliw = {par1, par2, par3 ->
-		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
 		int tempB = par3.toInteger()
-		int shifted = tempA << tempB
-		BigInteger bigShifted = shifted
-		registers[registerMap[par1]] = bigShifted
+		int result = tempA << tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def srli = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-		(registers[registerMap[par2]]).shiftRight(par3.toInteger())
+		long tempA = registers[registerMap[par2]]
+		long tempB = par3.toLong()
+		long result = tempA >>> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def mv = {par1, par2, ig1 ->
@@ -96,190 +101,186 @@ class RegisterFile {
 	}
 	
 	def sub = {par1, par2, par3 ->
-		BigInteger result = registers[registerMap[par2]] -
-			registers[registerMap[par3]]
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA - tempB
 		registers[registerMap[par1]] = result
 	}	
 	
 	def subw = {par1, par2, par3 ->
-		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		int tempB = registers[registerMap[par3]].and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
 		int result = tempA - tempB
-		BigInteger bigResult = result
-		registers[registerMap[par1]] = bigResult
+		registers[registerMap[par1]] = result
 	}
 	
-	
 	def or = {par1, par2, par3 ->
-		registers[registerMap[par1]] = 
-			registers[registerMap[par2]].or(registers[registerMap[par3]])
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA | tempB
+		registers[registerMap[par1]] = result 
 	}
 	
 	def mulw = {par1, par2, par3 ->
-		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		int multi = tempA * tempB
-		BigInteger bigMulti = multi
-		registers[registerMap[par1]] = bigMulti
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
+		int result = tempA * tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def mul = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			(registers[registerMap[par2]] *
-			registers[registerMap[par3]])
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA * tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def divw = {par1, par2, par3 ->
-		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		int tempB = (registers[registerMap[par3]].abs()).and(0xFFFFFFFF)
-		if (tempB == 0) {
-			return
-		}
-		int divx = tempA / tempB
-		BigInteger bigDiv = divx
-		registers[registerMap[par1]] = bigDiv
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
+	//	if (tempB == 0) {
+	//		return
+	//	}
+		int result = tempA / tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def addw = {par1, par2, par3 ->
-		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		int addUp = tempA + tempB
-		BigInteger bigAddUp = addUp
-		registers[registerMap[par1]] = bigAddUp
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
+		int result = tempA + tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def srliw = {par1, par2, par3 ->
-		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
 		int tempB = par3.toInteger() 
-		int shiftedLeft = tempA >> tempB
-		BigInteger bigShiftedLeft = shiftedLeft
-		registers[registerMap[par1]] = bigShiftedLeft
+		int result = tempA >>> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def srlw = {par1, par2, par3 ->
-		int tempA = (registers[registerMap[par2]]).and(0xFFFFFFFF)
-		int tempB = (registers[registerMap[par3]]).and(0xFFFFFFFF)
-		int tempC = tempA << tempB
-		BigInteger bigShiftedRight = tempC
-		registers[registerMap[par1]] = bigShiftedRight
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
+		int result = tempA >>> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def sraiw = {par1, par2, par3 ->
-		int tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		int signA = Integer.signum(tempA)
-		int tempB = par3.toInteger() % 0x400
-		int initShift = tempA >> tempB
-		if (Integer.signum(initShift) != signA) {
-			initShift *= -1
-		}
-		BigInteger arithShift = new BigInteger(initShift)
-		registers[registerMap[par1]] = arithShift
+		int tempA = registers[registerMap[par2]]
+		int tempB = par3.toInteger()
+		int result = tempA >> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def srai = {par1, par2, par3 ->
-		BigInteger tempA = registers[registerMap[par2]]
-		def signA = tempA.signum()
-		BigInteger tempB = par3.toInteger() % 0x400
-		BigInteger tempC = tempA.shiftRight(tempB)
-		if (tempC.signum() != signA) {
-			tempC *= -1
-		}
-		registers[registerMap[par1]] = tempC
+		long tempA = registers[registerMap[par2]]
+		long tempB = par3.toLong()
+		long result = tempA >> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def sraw = {par1, par2, par3 ->
-		BigInteger tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		int signA = Integer.signum(tempA)
-		BigInteger tempB = registers[registerMap[par3]].and(0xFFFFFFFF)
-		BigInteger tempC = tempA.shiftLeft(tempB)
-		if (Integer.signum(tempC) != signA) {
-			tempC *= -1
-		}
-		registers[registerMap[par1]] = tempC
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
+		int result = tempA >> tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def sextw = {par1, par2, ig1 ->
-		registers[registerMap[par1]] = 
-			registers[registerMap[par2]].and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
+		long result = tempA.longValue()
+		registers[registerMap[par1]] = result
 	}
 	
 	def snez = {par1, par2, ig1 ->
 		if (registers[registerMap[par2]] != 0) {
-			registers[registerMap[par1]] = new BigInteger(1)
+			registers[registerMap[par1]] = 1L
 		} else {
-			registers[registerMap[par1]] = new BigInteger(0)
+			registers[registerMap[par1]] = 0L
 		}
 	}
 	
 	def not = {par1, par2, ig1 ->
-		registers[registerMap[par1]] = 
-			registers[registerMap[par2]].xor(0xFFFFFFFFFFFFFFFF)
+		long tempA = registers[registerMap[par2]]
+		long result = tempA ^ 0xFFFFFFFFFFFFFFFF
+		registers[registerMap[par1]] = result
 	}
 	
 	def and = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			registers[registerMap[par2]].and(registers[registerMap[par3]])
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA & tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def seqz = {par1, par2, ig1 ->
 		if (registers[registerMap[par2]] == 0) {
-			registers[registerMap[par1]] = new BigInteger(1)
+			registers[registerMap[par1]] = 1L
 		} else {
-			registers[registerMap[par1]] = new BigInteger(0)
+			registers[registerMap[par1]] = 0L
 		}
 	}
 	
 	def sltiu = {par1, par2, par3 ->
 		if (registers[registerMap[par2]] < par3.toInteger()) {
-			registers[registerMap[par1]] = new BigInteger(1)
+			registers[registerMap[par1]] = 1L
 		} else {
-			registers[registerMap[par1]] = new BigInteger(0)
+			registers[registerMap[par1]] = 0L
 		}
 	}
 	
 	def slti = {par1, par2, par3 ->
 		if (registers[registerMap[par2]] < par3.toInteger()) {
-			registers[registerMap[par1]] = new BigInteger(1)
+			registers[registerMap[par1]] = 1L
 		} else {
-			registers[registerMap[par1]] = new BigInteger(0)
+			registers[registerMap[par1]] = 0L
 		}
 	}
 	
 	def slt = {par1, par2, par3 ->
 		if (registers[registerMap[par2]] < 
 			registers[registerMap[par3]]) {
-			registers[registerMap[par1]] = new BigInteger(1)
+			registers[registerMap[par1]] = 1L
 		} else {
-			registers[registerMap[par1]] = new BigInteger(0) 
+			registers[registerMap[par1]] = 0L
 		}
 	}
 	
 	def xori = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			registers[registerMap[par2]].xor(par3.toInteger())
+		long tempA = registers[registerMap[par2]]
+		int tempB = par3.toInteger()
+		long tempC = (tempB ^ 0x800) - 0x800
+		long result = tempA ^ tempC
+		registers[registerMap[par1]] = result
 	}
 	
 	def div = {par1, par2, par3 ->
-		if (registers[registerMap[par3]] == 0) {
-			return
-		}
-		registers[registerMap[par1]] = 
-			registers[registerMap[par1]].divide(registers[registerMap[par3]])
+//		if (registers[registerMap[par3]] == 0) {
+//			return
+//		}
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA / tempB
+		registers[registerMap[par1]] = result 
 	}
 	
 	def xor = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			registers[registerMap[par2]].xor(registers[registerMap[par3]])
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
+		long result = tempA ^ tempB
+		registers[registerMap[par1]] = result
 	}
+			
 	
 	def rem = {par1, par2, par3 ->
 		if (registers[registerMap[par3]] == 0) {
 			registers[registerMap[par1]] = registers[registerMap[par2]]
 		} else {
-			def tempA = registers[registerMap[par2]]
-			def tempB = registers[registerMap[par3]]
-			def tempC = tempA.remainder(tempB)
-			registers[registerMap[par1]] = tempC
+			long tempA = registers[registerMap[par2]]
+			long tempB = registers[registerMap[par3]]
+			long result = tempA % tempB
+			registers[registerMap[par1]] = result
 		}
 	}
 	
@@ -288,8 +289,7 @@ class RegisterFile {
 			registers[registerMap[par1]] = registers[registerMap[par2]]
 		} else {
 			registers[registerMap[par1]] =
-				registers[registerMap[par2]].remainder(
-				registers[registerMap[par3]])
+				registers[registerMap[par2]] % registers[registerMap[par3]]
 				if (registers[registerMap[par1]] < 0) {
 					registers[registerMap[par1]] *= -1
 				}
@@ -297,18 +297,18 @@ class RegisterFile {
 	}
 	
 	def remw = {par1, par2, par3 ->
-		def tempA = registers[registerMap[par3]].and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par3]]
 		if (tempA == 0) {
 			registers[registerMap[par1]] = 0
 			return
 		}
-		def tempB = registers[registerMap[par2]].and(0xFFFFFFFF)
-		registers[registerMap[par1]] = tempB.remainder(tempA)
+		int tempB = registers[registerMap[par2]]
+		registers[registerMap[par1]] = tempB % tempA
 	}
 	
 	def divu = { par1, par2, par3 ->
-		BigInteger tempA = registers[registerMap[par2]]
-		BigInteger tempB = registers[registerMap[par3]]
+		long tempA = registers[registerMap[par2]]
+		long tempB = registers[registerMap[par3]]
 		if (tempB == 0) {
 			return;
 		}
@@ -318,12 +318,13 @@ class RegisterFile {
 		if (tempB < 0) {
 			tempB *= -1
 		}
-		registers[registerMap[par1]] = tempA.divide(tempB)
+		long result = tempA / tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def divuw = {par1, par2, par3 ->
-		BigInteger tempA = registers[registerMap[par2]].and(0xFFFFFFFF)
-		BigInteger tempB = registers[registerMap[par3]].and(0xFFFFFFFF)
+		int tempA = registers[registerMap[par2]]
+		int tempB = registers[registerMap[par3]]
 		if (tempB == 0) {
 			return;
 		}
@@ -333,12 +334,16 @@ class RegisterFile {
 		if (tempB < 0) {
 			tempB *= -1
 		}
-		registers[registerMap[par1]] = (tempA.divide(tempB)).and(0xFFFFFFFF)
+		int result = tempA / tempB
+		registers[registerMap[par1]] = result
 	}
 	
 	def ori = {par1, par2, par3 ->
-		registers[registerMap[par1]] =
-			registers[registerMap[par2]].or(par3.toInteger())
+		long tempA = registers[registerMap[par2]]
+		int tempB = par3.toInteger()
+		long tempC = (tempB ^ 0x800) - 0x800
+		long result = tempA | tempC
+		registers[registerMap[par1]] = result
 	}
 
 	
