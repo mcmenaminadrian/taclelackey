@@ -9,9 +9,10 @@ class RegisterFile {
 	def maxRegVal
 	
 	def normalise = {registerName ->
-		registers[registerMap[registerName]] = 
-			registers[registerMap[registerName]].and(0xFFFFFFFFFFFFFFFF)
-			
+	//	registers[registerMap[registerName]] = 
+	//		registers[registerMap[registerName]].and(0xFFFFFFFFFFFFFFFF)
+			def n = registers[2].toString(16)
+			println "sp is 0x$n"
 		
 	}
 	
@@ -491,8 +492,10 @@ class RegisterFile {
 		BigInteger valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toLong()
-		(0..7).each {offset ->
-			byte partialResult = (valToStore.shiftRight(8 * offset)) & 0xFF
+		def mRange = 7
+		(0 .. mRange).each {offset ->
+			byte partialResult =
+				(valToStore.shiftRight((mRange - offset) * 8)) & 0xFF
 			memory[writeAddress + offset] = partialResult
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
@@ -504,8 +507,10 @@ class RegisterFile {
 		BigInteger valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toInteger()
-		(0 .. 3).each { offset ->
-			byte partialResult = (valToStore.shiftRight(8 * offset)) & 0xFF
+		def mRange = 3
+		(0 .. mRange).each {offset ->
+			byte partialResult =
+				(valToStore.shiftRight((mRange - offset) * 8)) & 0xFF
 			memory[writeAddress + offset] = partialResult
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
@@ -538,7 +543,7 @@ class RegisterFile {
 		float valToStore = registers[registerMap[par1]]
 		def baseAddress = registers[registerMap[par3]]
 		def writeAddress = baseAddress + par2.toInteger()
-		(0..3).each {offset ->
+		(3 .. 0).each {offset ->
 			memory[writeAddress + offset] =
 				(Float.floatToIntBits(valToStore) >> (8 * offset)) & 0xFF
 		}
@@ -551,19 +556,26 @@ class RegisterFile {
 	def ld = {par1, par2, par3, xml ->
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
-		BigInteger sum = 0
-		(0 .. 7).each { offset ->
+		BitSet loaded = new BitSet(64)
+		def mRange = 7
+		(mRange .. 0).each { offset ->
 			try {
-				byte figure = memory[readAddress + offset]
-				sum += (figure << (offset * 8))
+				byte readIn = (memory[readAddress + offset] 
+					<< ((mRange - offset) * 8))
+				for (int i = 0; i < 8; i++) {
+					if (readIn >>> i) {
+						loaded.set(offset * 8 + i)
+					}
+				}
 			}
 			catch (NullPointerException e) {
-				System.err.println "EXCEPTION!!!! ${readAddress + offset} $par1 $par2 $par3"
-				memory[readAddress + offset] = 0
+				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
+				memory[readAddress] = 0
 				sum += 0
 			}
 		}
-		registers[registerMap[par1]] = sum
+		long[] setBits = loaded.toLongArray()
+		registers[registerMap[par1]] = (loaded.toLongArray())[0]
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:8)
 	}
@@ -571,12 +583,17 @@ class RegisterFile {
 	def lw = {par1, par2, par3, xml ->
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
-		BigInteger sum = 0
-		(0 .. 3).each { offset ->
+		BitSet loaded = new BitSet(64)
+		def mRange = 3
+		(mRange .. 0).each { offset ->
 			try {
-				BigInteger readIn = memory[readAddress + offset]
-				sum +=
-					 readIn.shiftLeft(offset * 8)
+				byte readIn = (memory[readAddress + offset] 
+					<< ((mRange - offset) * 8))
+				for (int i = 0; i < 8; i++) {
+					if (readIn >>> i) {
+						loaded.set(offset * 8 + i)
+					}
+				}		
 			}
 			catch (NullPointerException e) {
 				System.err.println "EXCEPTION!!!! ${readAddress + offset} $par1 $par2 $par3"
@@ -585,7 +602,7 @@ class RegisterFile {
 			}
 			
 		}
-		registers[registerMap[par1]] = sum
+		registers[registerMap[par1]] = (loaded.toLongArray())[0]
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:4)
 	}
@@ -629,9 +646,11 @@ class RegisterFile {
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
 		BigInteger numb = 0
-		(0 .. 3).each { offset->
+		def mRange
+		(mRange .. 0).each { offset->
 			try {
-				numb += memory[readAddress + offset].leftShift(offset * 8)
+				numb = numb | (memory[readAddress + offset] 
+					<< ((mRange - offset) * 8))
 			}
 			catch (NullPointerException e) {
 				numb = 0
@@ -650,14 +669,14 @@ class RegisterFile {
 		BigInteger readAddress = baseAddress + par2.toInteger()
 		int rawNumb = 0
 		int readIn = 0
-		(0 .. 3).each { offset ->
+		(3 .. 0).each { offset ->
 			try {
 				readIn = memory[readAddress + offset]
 				rawNumb += readIn << (offset * 8)
 			}
 			catch (NullPointerException e) {
 				rawNumb = 0
-				memory[readAddress + offset] = 0
+				memory[readAddress] = 0
 				System.err.println "EXCEPTION!! flw fail $readAddress"
 			}
 		}
@@ -671,7 +690,7 @@ class RegisterFile {
 		def baseAddress = registers[registerMap[par3]]
 		def readAddress = baseAddress + par2.toInteger()
 		long rawNumb = 0
-		(0 .. 7).each { offset ->
+		(7 ..  0).each { offset ->
 			try {
 				rawNumb += (memory[readAddress + offset] << (offset * 8))
 			}
@@ -811,6 +830,7 @@ class RegisterFile {
 			{match, op1, op2, op3, op4, op5, op6, op7 ->
 				//println "state update with $op4 and paramters $op5, $op6, $op7"
 				(stateUpdates.find {it.key == op4}.value).call(op5, op6, op7)
+				normalise.call(op5)
 			}
 		)
 	}
