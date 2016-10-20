@@ -11,7 +11,7 @@ class RegisterFile {
 	def auipc = {par1, par2, ig1 ->
 		int addValue = Integer.parseInt(par2.stripIndent(2), 16)
 		long lAddValue = (addValue ^ 0x80000) - 0x80000
-		BigInteger result = pc + lAddValue
+		BigInteger result = pc + (lAddValue << 12) 
 		registers[registerMap[par1]] = result
 	}
 	
@@ -474,14 +474,16 @@ class RegisterFile {
 		"feq.s": feqs, "fmul.s": fmuls, "fadd.s": fadds,
 		"fcvt.w.s": fcvwts, "fsgnjn.s": fsgnjns, "fcvt.d.w": fcvtdw]
 
+	//Everything that follows should be BIGENDIAN
+	
 	def sd = {par1, par2, par3, xml ->
-		BigInteger valToStore = registers[registerMap[par1]]
+		long valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toLong()
 		def mRange = 7
 		(0 .. mRange).each {offset ->
 			byte partialResult =
-				(valToStore.shiftRight((mRange - offset) * 8)) & 0xFF
+				(valToStore >>> ((mRange - offset) * 8)) & 0xFF
 			memory[writeAddress + offset] = partialResult
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
@@ -490,13 +492,13 @@ class RegisterFile {
 	}
 	
 	def sw = {par1, par2, par3, xml ->
-		BigInteger valToStore = registers[registerMap[par1]]
+		long valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toInteger()
 		def mRange = 3
 		(0 .. mRange).each {offset ->
 			byte partialResult =
-				(valToStore.shiftRight((mRange - offset) * 8)) & 0xFF
+				(valToStore >>> ((mRange - offset) * 8)) & 0xFF
 			memory[writeAddress + offset] = partialResult
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
@@ -504,7 +506,7 @@ class RegisterFile {
 	}
 	
 	def sb = {par1, par2, par3, xml ->
-		BigInteger valToStore = registers[registerMap[par1]]
+		long valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toInteger()
 		byte storeThis = valToStore & 0xFF
@@ -515,11 +517,13 @@ class RegisterFile {
 	
 	def fsd = {par1, par2, par3, xml ->
 		Double valToStore = registers[registerMap[par1]]
-		def baseAddress = registers[registerMap[par3]]
-		def writeAddress = baseAddress + par2.toInteger()
-		(0..7).each {offset ->
+		BigInteger baseAddress = registers[registerMap[par3]]
+		BigInteger writeAddress = baseAddress + par2.toInteger()
+		def mRange = 7
+		(0 .. mRange).each {offset ->
 			memory[writeAddress + offset] =
-				(Double.doubleToLongBits(valToStore) >> (8 * offset)) & 0xFF 
+				(Double.doubleToLongBits(valToStore) >>>
+					((mRange - offset) * 8)) & 0xFF
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
 		xml.store(address:hexWriteAddress, size:8)
@@ -527,11 +531,13 @@ class RegisterFile {
 	
 	def fsw = {par1, par2, par3, xml ->
 		float valToStore = registers[registerMap[par1]]
-		def baseAddress = registers[registerMap[par3]]
-		def writeAddress = baseAddress + par2.toInteger()
-		(3 .. 0).each {offset ->
+		BigInteger baseAddress = registers[registerMap[par3]]
+		BigInteger writeAddress = baseAddress + par2.toInteger()
+		def mRange = 3
+		(0 .. mRange).each {offset ->
 			memory[writeAddress + offset] =
-				(Float.floatToIntBits(valToStore) >> (8 * offset)) & 0xFF
+				(Float.floatToIntBits(valToStore) >>>
+					((mRange - offset) * 8)) & 0xFF
 		}
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
 		xml.store(address:hexWriteAddress, size:4)
@@ -646,7 +652,7 @@ class RegisterFile {
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
 		BigInteger numb = 0
-		def mRange = 4
+		def mRange = 3
 		(mRange .. 0).each { offset->
 			try {
 				byte readByte = memory[readAddress + offset]
@@ -676,40 +682,69 @@ class RegisterFile {
 	def flw = {par1, par2, par3, xml ->
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
-		int rawNumb = 0
-		int readIn = 0
-		(3 .. 0).each { offset ->
+		BitSet sum = new BitSet(64)
+		def mRange = 3
+		(mRange .. 0).each { offset ->
 			try {
-				readIn = memory[readAddress + offset]
-				rawNumb += readIn << (offset * 8)
+				byte readByte = memory[readAddress + offset]
+				if (readByte != 0) {
+					for (int i = 0; i < 8; i++) {
+						byte testByte = (readByte & 0xFF) >>> i
+						if (testByte == 0)
+							break;
+						if (testByte & 0x01) {
+							sum.set((mRange - offset) * 8 + i)
+						}
+					}
+				}
 			}
-			catch (NullPointerException e) {
-				rawNumb = 0
+			catch (Exception e) {
+				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
 				memory[readAddress] = 0
-				System.err.println "EXCEPTION!! flw fail $readAddress"
 			}
 		}
-		registers[registerMap[par1]] = Float.intBitsToFloat(rawNumb)
+		if (sum.isEmpty()) {
+			registers[registerMap[par1]] = new Float(0)
+		} else {
+			int pResult = sum.toLongArray()[0]
+			registers[registerMap[par1]] =
+				Float.intBitsToFloat(pResult)
+		}
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:4)
 	}
 	
 	
 	def fld = {par1, par2, par3, xml ->
-		def baseAddress = registers[registerMap[par3]]
-		def readAddress = baseAddress + par2.toInteger()
-		long rawNumb = 0
-		(7 ..  0).each { offset ->
+		BigInteger baseAddress = registers[registerMap[par3]]
+		BigInteger readAddress = baseAddress + par2.toInteger()
+		BitSet sum = new BitSet(64)
+		def mRange = 7
+		(mRange .. 0).each { offset ->
 			try {
-				rawNumb += (memory[readAddress + offset] << (offset * 8))
+				byte readByte = memory[readAddress + offset]
+				if (readByte != 0) {
+					for (int i = 0; i < 8; i++) {
+						byte testByte = (readByte & 0xFF) >>> i
+						if (testByte == 0)
+							break;
+						if (testByte & 0x01) {
+							sum.set((mRange - offset) * 8 + i)
+						}
+					}
+				}
 			}
-			catch (NullPointerException e) {
-				rawNumb = 0
-				memory[readAddress + offset] = 0
-				System.err.println "EXCEPTION!! fld fail $readAddress"
+			catch (Exception e) {
+				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
+				memory[readAddress] = 0
 			}
 		}
-		registers[registerMap[par1]] = Double.longBitsToDouble(rawNumb)
+		if (sum.isEmpty()) {
+			registers[registerMap[par1]] = new Double(0)
+		} else {
+			registers[registerMap[par1]] = 
+				Double.longBitsToDouble(sum.toLongArray()[0])
+		}
 		def hexReadAddress = "0x" + readAddress.toString(16)
 		xml.load(address:hexReadAddress, size:8)
 	}
