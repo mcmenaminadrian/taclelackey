@@ -51,7 +51,7 @@ class RegisterFile {
 	def lui = {par1, par2, ig1 ->
 		int addValue = Integer.parseInt(par2.stripIndent(2), 16)
 		long lAddValue = (addValue ^ 0x80000) - 0x80000
-		BigInteger bResult = lAddValue
+		BigInteger bResult = lAddValue << 12
 		registers[registerMap[par1]] = bResult
 		
 	}
@@ -564,10 +564,9 @@ class RegisterFile {
 					}
 				}
 			}
-			catch (NullPointerException e) {
+			catch (Exception e) {
 				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
-				memory[readAddress] = 0
-				sum += 0
+				memory[readAddress + offset] = 0
 			}
 		}
 		if (sum.isEmpty()) {
@@ -598,10 +597,9 @@ class RegisterFile {
 					}
 				}
 			}
-			catch (NullPointerException e) {
+			catch (Exception e) {
 				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
-				memory[readAddress] = 0
-				sum += 0
+				memory[readAddress + offset] = 0
 			}
 		}
 		if (sum.isEmpty()) {
@@ -621,7 +619,7 @@ class RegisterFile {
 			byte readIn = memory[readAddress]
 			numb |= (readIn & 0xFF)
 		}
-		catch (NullPointerException e) {
+		catch (Exception e) {
 			System.err.println "EXCEPTION!!! lbu fail at $readAddress"
 			memory[readAddress] = 0
 			numb = 0
@@ -639,7 +637,7 @@ class RegisterFile {
 			byte readIn = memory[readAddress]
 			registers[registerMap[par1]] = (readIn & 0xFFFFFFFF)
 		}
-		catch (NullPointerException e) {
+		catch (Exception e) {
 			System.err.println "EXCEPTION!!! lb fail at $readAddress"
 			numb = 0
 			memory[readAddress] = 0
@@ -700,7 +698,7 @@ class RegisterFile {
 			}
 			catch (Exception e) {
 				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
-				memory[readAddress] = 0
+				memory[readAddress + offset] = 0
 			}
 		}
 		if (sum.isEmpty()) {
