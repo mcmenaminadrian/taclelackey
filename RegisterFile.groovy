@@ -492,7 +492,7 @@ class RegisterFile {
 	}
 	
 	def sw = {par1, par2, par3, xml ->
-		long valToStore = registers[registerMap[par1]]
+		int valToStore = registers[registerMap[par1]]
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger writeAddress = baseAddress + par2.toInteger()
 		def mRange = 3
@@ -513,6 +513,20 @@ class RegisterFile {
 		memory[writeAddress] = storeThis
 		def hexWriteAddress = "0x" + writeAddress.toString(16)
 		xml.store(address:hexWriteAddress, size:1)
+	}
+	
+	def sh = {par1, par2, par3, xml ->
+		short valToStore = registers[registerMap[par1]]
+		BigInteger baseAddress = registers[registerMap[par3]]
+		BigInteger writeAddress = baseAddress + par2.toInteger()
+		def mRange = 1
+		(0 .. mRange).each {offset ->
+			byte partialResult =
+				(valToStore >>> ((mRange - offset) * 8)) & 0xFF
+			memory[writeAddress + offset] = partialResult
+		}
+		def hexWriteAddress = "0x" + writeAddress.toString(16)
+		xml.store(address:hexWriteAddress, size:2)
 	}
 	
 	def fsd = {par1, par2, par3, xml ->
@@ -543,7 +557,8 @@ class RegisterFile {
 		xml.store(address:hexWriteAddress, size:4)
 	}
 	
-	def storeUpdates = ["sd":sd, "sw":sw, "sb":sb, "fsd": fsd, "fsw": fsw]
+	def storeUpdates = ["sd":sd, "sw":sw, "sb":sb, "fsd": fsd, "fsw": fsw,
+		"sh": sh]
 
 	def ld = {par1, par2, par3, xml ->
 		BigInteger baseAddress = registers[registerMap[par3]]
