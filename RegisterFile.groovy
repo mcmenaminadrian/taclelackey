@@ -304,7 +304,7 @@ class RegisterFile {
 			registers[registerMap[par1]] = registers[registerMap[par2]]
 		} else {
 			registers[registerMap[par1]] =
-				registers[registerMap[par2]].remainder(
+				registers[registerMap[par2]] % (
 					registers[registerMap[par3]])
 				if (registers[registerMap[par1]] < 0) {
 					registers[registerMap[par1]] *= -1
@@ -319,7 +319,7 @@ class RegisterFile {
 			return
 		}
 		int tempB = registers[registerMap[par2]]
-		registers[registerMap[par1]] = new BigInteger(tempB % tempA)
+		registers[registerMap[par1]] = tempB % tempA
 	}
 	
 	def divu = { par1, par2, par3 ->
