@@ -627,6 +627,41 @@ class RegisterFile {
 		xml.load(address:hexReadAddress, size:4)
 	}
 	
+	
+	def lh = {par1, par2, par3, xml ->
+		BigInteger baseAddress = registers[registerMap[par3]]
+		BigInteger readAddress = baseAddress + par2.toInteger()
+		BitSet sum = new BitSet(64)
+		def mRange = 1
+		(mRange .. 0).each { offset ->
+			try {
+				byte readByte = memory[readAddress + offset]
+				if (readByte != 0) {
+					for (int i = 0; i < 8; i++) {
+						byte testByte = (readByte & 0xFF) >>> i
+						if (testByte == 0)
+							break;
+						if (testByte & 0x01) {
+							sum.set((mRange - offset) * 8 + i)
+						}
+					}
+				}
+			}
+			catch (Exception e) {
+				System.err.println "EXCEPTION!!!! ${readAddress} $par1 $par2 $par3"
+				memory[readAddress + offset] = 0
+			}
+		}
+		if (sum.isEmpty()) {
+			registers[registerMap[par1]] = 0
+		} else {
+			short result = (sum.toLongArray()[0]) & 0xFFFF
+			registers[registerMap[par1]] = result
+		}
+		def hexReadAddress = "0x" + readAddress.toString(16)
+		xml.load(address:hexReadAddress, size:4)
+	}
+	
 	def lbu = {par1, par2, par3, xml ->
 		BigInteger baseAddress = registers[registerMap[par3]]
 		BigInteger readAddress = baseAddress + par2.toInteger()
@@ -766,7 +801,7 @@ class RegisterFile {
 	}
 	
 	def loadUpdates = ["ld":ld, "lw":lw, "lbu": lbu, "lwu":lwu, "lb": lb,
-		"flw": flw, "fld": fld]
+		"flw": flw, "fld": fld, "lh": lh]
 		
 	def jal = {ig1, ig2 ->
 		registers[registerMap["ra"]] = pc + 4

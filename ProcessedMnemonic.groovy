@@ -3,7 +3,7 @@ package taclelackey
 class ProcessedMnemonic {
 	List<String> modify = []
 	List<String> store = ["sd", "sw", "sb", "fsd", "fsw", "sh"]
-	List<String> load = ["ld", "lw", "lbu", "lwu", "lb", "flw", "fld"]
+	List<String> load = ["ld", "lw", "lbu", "lwu", "lb", "flw", "fld", "lh"]
 	List<String> registers = ["auipc", "addi", "li", "csrw", "lui", "csrs",
 		"csrr", "andi", "fmv.s.x", "slli", "add", "mv", "srli", "sub", "or",
 		"addiw", "mulw", "subw", "slliw", "divw", "addw", "srliw", "sraiw",
